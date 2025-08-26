@@ -1,0 +1,93 @@
+{
+  "name": "N8N Error Logger - COMPLETE",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\nconst timestamp = new Date().toISOString();\nconst executionId = $execution.id;\n\n// Extract error details with fallbacks\nconst workflow = error.workflow || {};\nconst errorDetails = error.error || {};\nconst node = errorDetails.node || {};\n\nreturn [{\n  json: {\n    workflow_name: workflow.name || \"Unknown Workflow\",\n    workflow_id: workflow.id || \"Unknown ID\",\n    error_message: errorDetails.message || \"Unknown Error\",\n    error_type: errorDetails.type || \"Workflow Error\",\n    error_stack: errorDetails.stack || \"No stack trace\",\n    timestamp: timestamp,\n    execution_id: executionId,\n    failed_node: node.name || \"Unknown Node\",\n    node_type: node.type || \"Unknown Type\",\n    dashboard_url: `https://n8n.getfoundstocks.com/workflow/${workflow.id || ''}`,\n    execution_url: `https://n8n.getfoundstocks.com/execution/${executionId}`,\n    severity: \"Error\",\n    status: \"Failed\"\n  }\n}];"
+      },
+      "id": "format-error",
+      "name": "Format Error Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "SRYmkeEiOj8uO1Vp",
+        "url": "https://api.notion.com/v1/pages",
+        "httpMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "parent",
+              "value": "{{ {\"database_id\": \"23d4ea7cdefa80ccb756dc7794f7c972\"} }}"
+            },
+            {
+              "name": "properties",
+              "value": "{{ {\"Error Message\": {\"title\": [{\"text\": {\"content\": $json.error_message}}]}, \"Workflow\": {\"rich_text\": [{\"text\": {\"content\": $json.workflow_name}}]}, \"Node\": {\"rich_text\": [{\"text\": {\"content\": $json.failed_node}}]}, \"Timestamp\": {\"date\": {\"start\": $json.timestamp}}, \"Severity\": {\"select\": {\"name\": $json.severity}}, \"Status\": {\"select\": {\"name\": $json.status}}, \"Execution URL\": {\"url\": $json.execution_url}} }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "log-error-notion",
+      "name": "Log Error to Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Data": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}
